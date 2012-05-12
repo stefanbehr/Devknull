@@ -1,15 +1,15 @@
 ig.module(
-	'game.entities.hellbeast'
+	'game.entities.darkelf'
 )
 .requires(
 	'impact.entity'
 )
 .defines(function() {
-	EntityHellbeast = ig.Entity.extend({
-		animSheet: new ig.AnimationSheet('media/hell_beast.png', 36, 48),
+	EntityDarkelf = ig.Entity.extend({
+		animSheet: new ig.AnimationSheet('media/dark_elf.png', 36, 48),
 		size: {x: 20, y: 34},
         offset: {x: 8, y: 14},
-        name: 'hellbeast',
+        name: 'darkelf',
         zIndex: -7,
 		direction: 2,
 		directions: [
@@ -24,10 +24,10 @@ ig.module(
 		velGround: 50,
         health: 30, // Check for health == 0
         doesDamage: 1,
-    	weapons: ['sword', 'fireball'],
+    	weapons: ['sword', 'spell'],
         activeWeapon: 'sword',
         attackRadius: 100,
-        stopRadius: 20,
+        stopRadius: 75,
         followRadius: 200,
         following: false,
         detourDuration: 1,
@@ -36,12 +36,15 @@ ig.module(
         stopped: false,
         detouring: false,
 		attacking: false,
-		fireballInterval: 3,
-		attackTimer: new ig.Timer(),
-		attackLapse: 1,
+<<<<<<< HEAD
+        attackLapse:1,
+        hasHit: false,
+=======
+        attackLapse: 1,
+>>>>>>> 130f668ba2f00faa25fe0b356ce8b4dcb44be61d
 		init: function(x, y, settings) {
 			this.parent(x, y, settings);
-			this.weapon = ig.game.spawnEntity('EntityHellbeastWeapon', this.pos.x, this.pos.y, {owner:this});
+			this.weapon = ig.game.spawnEntity('EntityElfWeapon', this.pos.x, this.pos.y, {owner:this});
 			// Add animations
 			this.setupAnimation(this.direction);
 		},
@@ -49,14 +52,13 @@ ig.module(
 			// switch weapons, manual for now
 			if (ig.input.pressed('switch')) {
             	this.weapon.kill();
-                this.activeWeapon = (this.activeWeapon == this.weapons[0]) ?
+                this.activeWeapon = (this.activeWeapon == this.weapons[0]) ? 
                 	this.weapons[1] : this.weapons[0];
-	            this.weapon = ig.game.spawnEntity('EntityHellbeastWeapon', this.pos.x, this.pos.y, {owner: this});
+	            this.weapon = ig.game.spawnEntity('EntityElfWeapon', this.pos.x, this.pos.y, {owner: this});
             }
 
-
+			
 			var oldDirection = this.direction;
-
 			// AI code
 			var player = ig.game.getEntitiesByType(EntityPlayer)[0];
 			if (this.detouring && (this.detourTimer.delta() > this.detourDuration)) {
@@ -109,9 +111,9 @@ ig.module(
 				var px, py;
 				px = player.pos.x;
 				py = player.pos.y;
-
+				
 				var enemyDist = this.euclidDist(px, py, this.pos.x, this.pos.y);
-
+				
 				if ((enemyDist <= this.followRadius) && (enemyDist > this.stopRadius)) {
 					this.following = true;
 					this.stopped = false;
@@ -119,18 +121,14 @@ ig.module(
 					var absxdist, absydist;
 					absxdist = Math.abs(px - this.pos.x);
 					absydist = Math.abs(py - this.pos.y);
-
+					
 					var above, left;
 					above = (this.pos.y < py);
 					left = (this.pos.x < px);
-
+					
 					var xaligned, yaligned;
 					xaligned = (this.pos.x == px);
 					yaligned = (this.pos.y == py);
-
-					var xneighborhood, yneighborhood;
-					yneighborhood = (Math.abs(this.pos.x - px) < 50);
-					xneighborhood = (Math.abs(this.pos.y - py) < 50);
 
 					// follow player
 
@@ -161,29 +159,15 @@ ig.module(
 						}
 					}
 				} else {
-					this.following = false;
-				}
-				// if within attack radius, attack if possible
-				if (enemyDist <= this.attackRadius) {
-					if (enemyDist > this.stopRadius) {
-						this.activeWeapon = 'fireball';
-						this.stopped = false;
-						if (this.fireballInterval <= this.attackTimer.delta()) {
-							this.attacking = true;
-							this.attackTimer.reset();
-						} else {
-							this.attacking = false;
-						}
-					} else {
-						this.attacking = true;
-						this.activeWeapon = 'sword';
+					if (enemyDist <= this.stopRadius) {
+						this.stopped = true;
 						this.vel.x = 0;
 						this.vel.y = 0;
-						this.stopped = true;
+					} else {
+						this.stopped = false;
 					}
-				} else {
-					this.attacking = false;
-				}
+					this.following = false;
+				}				
 			}
 		},
 		kill: function() {
@@ -237,9 +221,9 @@ ig.module(
 		},
 	});
 
-    EntityFireball = ig.Entity.extend({
+    EntitySpell = ig.Entity.extend({
 		size: {x: 32, y: 32},
-		animSheet: new ig.AnimationSheet('media/fire.png', 32, 32),
+		animSheet: new ig.AnimationSheet('media/spell.png', 32, 32),
 		maxVel: {x: 400, y: 400},
 		type: ig.Entity.TYPE.NONE,
 		checkAgainst: ig.Entity.TYPE.A,
@@ -301,7 +285,7 @@ ig.module(
         }
 	});
 
-    EntityHellbeastWeapon = ig.Entity.extend({
+    EntityElfWeapon = ig.Entity.extend({
         size: {x: 32, y: 32}, //TODO ANIMATE WEAPON
         animSheet: new ig.AnimationSheet('media/weapons1.png', 32, 32),
         maxVel: {x: 150, y: 150},
@@ -349,7 +333,7 @@ ig.module(
             } else if (this.weaponType == 'sword') {
                 this.currentAnim = this.anims.idle;
             } else {
-            	this.currentAnim = this.anims.fireball;
+            	this.currentAnim = this.anims.spell;
             }
             this.pos.x = this.owner.pos.x;
             this.pos.y = this.owner.pos.y;
@@ -369,31 +353,28 @@ ig.module(
             	swingseq = swingseq.reverse();
             }
             swingseq = swingseq.concat(swingseq.reverse());
-            this.addAnim('fireball', 1, [16]);
+            this.addAnim('spell', 1, [-1]);
             this.addAnim('swing', this.attackDuration, swingseq);
         },
         checkAttack: function() {
             if (this.weaponType == 'sword') {
-                if ((this.owner.attacking == true) && !this.attacking) {
-                	console.log("owner attacking, this not");
+                if (ig.input.pressed('attack') && !this.attacking) {
                     this.attacking = true;
                     this.hasHit = false;
                     this.attackTimer = new ig.Timer();
                 } else if (this.attacking) {
-                	console.log("elif this attacking");
                     if (this.attackTimer.delta() >= this.attackDuration) {
-						console.log("stop attacking");
                         this.attacking = false;
                         this.attackTimer = 0;
                         this.hasHit = false;
                     }
                 }
             }
-            if ((this.weaponType == 'fireball') && (this.owner.attacking == true)) {
+            if (this.weaponType == 'spell' && ig.input.pressed('attack')) {
                 this.attacking = false;
                 this.attackTimer = 0;
                 this.hasHit = false;
-                ig.game.spawnEntity('EntityFireball', this.owner.pos.x, this.owner.pos.y, {dir:this.owner.direction, owner:this.owner});
+                ig.game.spawnEntity('EntitySpell', this.owner.pos.x, this.owner.pos.y, {dir:this.owner.direction, owner:this.owner});
             }
          },
     	weaponDisplace: function(weapon) {
