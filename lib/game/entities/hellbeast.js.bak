@@ -1,15 +1,15 @@
 ig.module(
-	'game.entities.ghost'
+	'game.entities.hellbeast'
 )
 .requires(
 	'impact.entity'
 )
 .defines(function() {
-	EntityGhost = ig.Entity.extend({
-		animSheet: new ig.AnimationSheet('media/ghost.png', 36, 48),
+	EntityHellbeast = ig.Entity.extend({
+		animSheet: new ig.AnimationSheet('media/hell_beast.png', 36, 48),
 		size: {x: 20, y: 34},
         offset: {x: 8, y: 14},
-        name: 'ghost',
+        name: 'hellbeast',
         zIndex: -7,
 		direction: 2,
 		directions: [
@@ -23,12 +23,11 @@ ig.module(
 		friction: {x: 100, y: 100},
 		velGround: 50,
         health: 30, // Check for health == 0
-        healthScale: 0.25,
-        doesDamage: 0,
-    	weapons: ['whirlwind'],
-        activeWeapon: 'whirlwind',
+        doesDamage: 1,
+    	weapons: ['sword', 'fireball'],
+        activeWeapon: 'sword',
         attackRadius: 100,
-        stopRadius: 60,
+        stopRadius: 45,
         followRadius: 200,
         following: false,
         detourDuration: 1,
@@ -37,16 +36,23 @@ ig.module(
         stopped: false,
         detouring: false,
 		attacking: false,
-		whirlwindInterval: 2,
-		attackTimer: new ig.Timer(),
 		attackLapse: 1,
 		init: function(x, y, settings) {
 			this.parent(x, y, settings);
-			this.weapon = ig.game.spawnEntity('EntityGhostWeapon', this.pos.x, this.pos.y, {owner:this});
+			this.weapon = ig.game.spawnEntity('EntityHellbeastWeapon', this.pos.x, this.pos.y, {owner:this});
 			// Add animations
 			this.setupAnimation(this.direction);
 		},
-		update: function() {			
+		update: function() {
+			// switch weapons, manual for now
+			if (ig.input.pressed('switch')) {
+            	this.weapon.kill();
+                this.activeWeapon = (this.activeWeapon == this.weapons[0]) ? 
+                	this.weapons[1] : this.weapons[0];
+	            this.weapon = ig.game.spawnEntity('EntityHellbeastWeapon', this.pos.x, this.pos.y, {owner: this});
+            }
+
+			
 			var oldDirection = this.direction;
 			
 			// AI code
@@ -101,9 +107,9 @@ ig.module(
 				var px, py;
 				px = player.pos.x;
 				py = player.pos.y;
-
+				
 				var enemyDist = this.euclidDist(px, py, this.pos.x, this.pos.y);
-
+				
 				if ((enemyDist <= this.followRadius) && (enemyDist > this.stopRadius)) {
 					this.following = true;
 					this.stopped = false;
@@ -111,14 +117,18 @@ ig.module(
 					var absxdist, absydist;
 					absxdist = Math.abs(px - this.pos.x);
 					absydist = Math.abs(py - this.pos.y);
-
+					
 					var above, left;
 					above = (this.pos.y < py);
 					left = (this.pos.x < px);
-
+					
 					var xaligned, yaligned;
 					xaligned = (this.pos.x == px);
 					yaligned = (this.pos.y == py);
+					
+					var xneighborhood, yneighborhood;
+					xneighborhood = (Math.abs(this.pos.x - px) < 8);
+					yneighborhood = (Math.abs(this.pos.y - py) < 8);
 
 					// follow player
 
@@ -153,29 +163,19 @@ ig.module(
 				}
 				// if within attack radius, attack if possible
 				if (enemyDist <= this.attackRadius) {
-					if (enemyDist > this.stopRadius) {
-						this.activeWeapon = 'whirlwind';
+					if (enemyDist > stopRadius) {
+						this.activeWeapon = 'fireball';
 						this.stopped = false;
-						if (this.whirlwindInterval <= this.attackTimer.delta()) {
-							this.attacking = true;
-							this.attackTimer.reset();
-						} else {
-							this.attacking = false;
-						}
 					} else {
-						this.activeWeapon = 'whirlwind';
+						this.activeWeapon = 'sword';
 						this.vel.x = 0;
 						this.vel.y = 0;
 						this.stopped = true;
-						if (this.whirlwindInterval <= this.attackTimer.delta()) {
-							this.attacking = true;
-							this.attackTimer.reset();
-						} else {
-							this.attacking = false;
-						}
 					}
-				} else {
-					this.attacking = false;
+					// within some neighborhood of xaligned or yaligned
+					if (xneighborhood || yneighborhood) {
+						this.attacking = true;
+					}
 				}
 			}
 		},
@@ -198,6 +198,7 @@ ig.module(
 		check: function(other) {
             if (!this.hasHit) {
 			    other.receiveDamage(this.doesDamage, this);
+			    console.log(other.health);
                 this.hasHit = true;
                 this.lastAttack = new ig.Timer();
             } else if(this.lastAttack.delta() >= this.attackLapse) {
@@ -229,9 +230,9 @@ ig.module(
 		},
 	});
 
-    EntityWhirlwind = ig.Entity.extend({
+    EntityFireball = ig.Entity.extend({
 		size: {x: 32, y: 32},
-		animSheet: new ig.AnimationSheet('media/white_whirl.png', 32, 32),
+		animSheet: new ig.AnimationSheet('media/fire.png', 32, 32),
 		maxVel: {x: 400, y: 400},
 		type: ig.Entity.TYPE.NONE,
 		checkAgainst: ig.Entity.TYPE.A,
@@ -239,7 +240,7 @@ ig.module(
         zIndex: -12,
         lifetime: 0.3,
         ticks: 0,
-        doesDamage: 2,
+        doesDamage: 10,
 		vel: {x: 0, y: 0},
 		owner: null,
 		init: function(x, y, settings) {
@@ -269,7 +270,7 @@ ig.module(
 					break;
 			}
             this.parent(x+xadjust, y+yadjust, settings);
-            this.addAnim('idle', 0.3, [0, 1, 2, 3, 2, 1]); // pulsate
+            this.addAnim('idle', 0.03, [0, 1, 2, 3, 2, 1]); // pulsate
             this.timeExist = new ig.Timer();
             this.lifetime = 0.3;
         },
@@ -293,25 +294,30 @@ ig.module(
         }
 	});
 
-    EntityGhostWeapon = ig.Entity.extend({
+    EntityHellbeastWeapon = ig.Entity.extend({
         size: {x: 32, y: 32}, //TODO ANIMATE WEAPON
         animSheet: new ig.AnimationSheet('media/weapons1.png', 32, 32),
         maxVel: {x: 150, y: 150},
         type: ig.Entity.TYPE.NONE,
         checkAgainst: ig.Entity.TYPE.A,
         collides: ig.Entity.COLLIDES.PASSIVE,
-        weaponType: 'whirlwind',
+        weaponType: 'sword',
         hasHit: false,
         attackDuration: 0.25,
         attackTimer: 0,
         attacking: false,
         direction: 2,
         zIndex: -11,
+		weaponDisplacements: {'sword': [{x: 3, y: 7},
+        								{x: 1, y: 7},
+        								{x: -16, y: 7},
+        								{x: -18, y: 7}]
+		},
         init: function(x, y, settings) {
         	this.parent(x, y, settings);
             this.owner = settings.owner;
+            this.weaponDisplace(this.weaponType);
             this.setupAnimation(this.direction);
-            this.currentAnim = this.anims.whirlwind;
         },
         handleMovementTrace: function(res) {
             // If collision, stop player
@@ -320,25 +326,74 @@ ig.module(
                 this.owner.vel.y = 0;
             }
         },
+        check: function(other) {
+            // Causes damage once every sword cycle.
+            if(this.attacking && !this.hasHit && other.type == ig.Entity.TYPE.A && this.weaponType == 'sword') {
+                other.receiveDamage(5, this);
+                this.hasHit = true;
+            }
+        },
         update: function(settings) {
             this.weaponType = this.owner.activeWeapon;
             this.checkAttack();
             this.setupAnimation(this.owner.direction);
-			this.currentAnim = this.anims.whirlwind;
+            if (this.weaponType == 'sword' && this.attacking) {
+                this.currentAnim = this.anims.swing;
+            } else if (this.weaponType == 'sword') {
+                this.currentAnim = this.anims.idle;
+            } else {
+            	this.currentAnim = this.anims.fireball;
+            }
             this.pos.x = this.owner.pos.x;
             this.pos.y = this.owner.pos.y;
+            this.weaponDisplace(this.weaponType);
         },
 		setupAnimation: function(dir) {
+			var left = (dir == 3);
+             // If going up, put weapon behind user
+            this.zIndex = (dir % 3) ? -6 : -8;
             ig.game.sortEntitiesDeferred(); // Registers new zIndex.
-            this.addAnim('whirlwind', 1, [16]);
+			offset = dir * 3 + 1;
+            left ? this.addAnim('idle', 1, [offset+1]) : this.addAnim('idle', 1, [offset-1]);
+            var swingseq = [offset-1,
+            				offset,
+            				offset+1];
+            if (left) {
+            	swingseq = swingseq.reverse();
+            }
+            swingseq = swingseq.concat(swingseq.reverse());
+            this.addAnim('fireball', 1, [16]);
+            this.addAnim('swing', this.attackDuration, swingseq);
         },
         checkAttack: function() {
-            if (this.weaponType == 'whirlwind' && this.owner.attacking == true) {
+            if (this.weaponType == 'sword') {
+                if (ig.input.pressed('attack') && !this.attacking) {
+                    this.attacking = true;
+                    this.hasHit = false;
+                    this.attackTimer = new ig.Timer();
+                } else if (this.attacking) {
+                    if (this.attackTimer.delta() >= this.attackDuration) {
+                        this.attacking = false;
+                        this.attackTimer = 0;
+                        this.hasHit = false;
+                    }
+                }
+            }
+            if (this.weaponType == 'fireball' && ig.input.pressed('attack')) {
                 this.attacking = false;
                 this.attackTimer = 0;
                 this.hasHit = false;
-                ig.game.spawnEntity('EntityWhirlwind', this.owner.pos.x, this.owner.pos.y, {dir:this.owner.direction, owner:this.owner});
+                ig.game.spawnEntity('EntityFireball', this.owner.pos.x, this.owner.pos.y, {dir:this.owner.direction, owner:this.owner});
             }
          },
+    	weaponDisplace: function(weapon) {
+    		// get array of x, y displacement dicts indexed by direction
+    		if (weapon == "sword") {
+				var displacements = this.weaponDisplacements[weapon];
+				var dir = this.owner.direction;
+				this.pos.x += displacements[dir].x;
+				this.pos.y += displacements[dir].y;
+			}
+        },
     });
 });
